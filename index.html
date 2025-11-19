@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-16" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>URL Player</title>
+    <style>
+      :root {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
+          Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji",
+          "Segoe UI Emoji";
+      }
+      body {
+        margin: 0;
+        background: #0b0f17;
+        color: #e6e6e6;
+      }
+      .container {
+        max-width: 900px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+      .card {
+        background: #121826;
+        border: 1px solid #1f2937;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      }
+      .pad {
+        padding: 16px 18px;
+      }
+      .title {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+      .muted {
+        color: #9aa4b2;
+        font-size: 13px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .row > * {
+        flex: 1 1 auto;
+      }
+      .input {
+        background: #0b1220;
+        border: 1px solid #263041;
+        color: #e6e6e6;
+        border-radius: 12px;
+        padding: 10px 12px;
+        outline: none;
+      }
+      .btn {
+        background: #dd1010ec;
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 12px;
+        cursor: pointer;
+      }
+      .btn.secondary {
+        background: #233451;
+      }
+      .btn.ghost {
+        background: transparent;
+        border: 1px solid #fffefeff;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .player-wrap {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #0b1220;
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        overflow: hidden;
+      }
+      #player {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 8px;
+      }
+      .stat {
+        background: #0b1220;
+        border: 1px solid #263041;
+        border-radius: 12px;
+        padding: 10px 12px;
+        display: flex;
+        justify-content: space-between;
+      }
+      a {
+        color: #9cc2ff;
+      }
+      .footer {
+        font-size: 12px;
+        color: #9aa4b2;
+        text-align: center;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <div class="player-wrap">
+          <!-- Tip: For privacy-enhanced mode we use youtube-nocookie.com -->
+          <div id="player"></div>
+        </div>
+
+        <div class="pad">
+          <div class="title">Embed & URL Player</div>
+          <p class="muted">
+            URL ya video ID daaliye, phir <strong>Load Video</strong> dabaiye.
+            Neeche Play/Pause controls milenge.
+          </p>
+
+          <div class="row" style="margin: 10px 0 14 px">
+            <input id="videoInput" class="input" placeholder="Enter URL 🔗" />
+            <!-- <button id="downloadBtn" class="btn">Download here</button> -->
+            <button id="loadBtn" class="btn">Load Video</button>
+          </div>
+
+          <div class="controls" style="margin-bottom: 12px">
+            <button class="btn secondary" id="playBtn">Play</button>
+            <button class="btn secondary" id="pauseBtn">Pause</button>
+            <button class="btn ghost" id="muteBtn">Mute</button>
+            <button class="btn ghost" id="unmuteBtn">Unmute</button>
+            <button class="btn ghost" id="seekBtn">+10s</button>
+            <button class="btn ghost" id="seekBtn2">-10s</button>
+            <button class="btn ghost" id="qualityBtn">Auto Quality</button>
+          </div>
+
+          <div class="row" style="margin-bottom: 8px">
+            <div class="stat">
+              <span>Status</span><span id="status">Idle</span>
+            </div>
+            <div class="stat">
+              <span>Time</span><span id="time">0:00 / 0:00</span>
+            </div>
+          </div>
+          <p class="footer">
+            Pro tip: "youtube-nocookie.com" privacy‑enhanced mode hai. Aur
+            "?start=60" jaise params se start time set kar sakte hain.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+      let player;
+      const els = {
+        status: document.getElementById("status"),
+        time: document.getElementById("time"),
+        input: document.getElementById("videoInput"),
+        load: document.getElementById("loadBtn"),
+        play: document.getElementById("playBtn"),
+        pause: document.getElementById("pauseBtn"),
+        mute: document.getElementById("muteBtn"),
+        unmute: document.getElementById("unmuteBtn"),
+        seek: document.getElementById("seekBtn"),
+        quality: document.getElementById("qualityBtn"),
+      };
+
+      // Default video (change to your preferred ID)
+      const DEFAULT_ID = "-qdSol0JhKI";
+      -(
+        // Extract video ID from a full YouTube URL or return as-is if likely already an ID
+        function extractId(input) {
+          if (!input) return "";
+          // If it's already a plausible 11-char ID
+          if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+          try {
+            const url = new URL(input);
+            // youtu.be/ID
+            if (url.hostname.includes("youtu.be")) {
+              return url.pathname.slice(1).split("/")[0];
+            }
+            // youtube.com/watch?v=ID or /embed/ID
+            if (url.searchParams.get("v")) return url.searchParams.get("v");
+            const parts = url.pathname.split("/");
+            const embedIndex = parts.indexOf("embed");
+            if (embedIndex !== -1 && parts[embedIndex + 1])
+              return parts[embedIndex + 1];
+          } catch (e) {}
+          return input.trim();
+        }
+      );
+
+      function fmtTime(s) {
+        s = Math.max(0, Math.floor(s || 0));
+        const m = Math.floor(s / 60);
+        const sec = String(s % 60).padStart(2, "0");
+        return `${m}:${sec}`;
+      }
+
+      function updateTime() {
+        if (!player || typeof player.getCurrentTime !== "function") return;
+        const cur = player.getCurrentTime();
+        const dur = player.getDuration();
+        els.time.textContent = `${fmtTime(cur)} / ${fmtTime(dur)}`;
+      }
+
+      function setStatus(text) {
+        els.status.textContent = text;
+      }
+
+      // YouTube API callback
+      window.onYouTubeIframeAPIReady = function () {
+        player = new YT.Player("player", {
+          // Use youtube-nocookie domain via host attr
+          host: "https://www.youtube-nocookie.com",
+          videoId: DEFAULT_ID,
+          playerVars: {
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+          },
+          events: {
+            onReady: () => setStatus("Ready"),
+            onStateChange: (e) => {
+              const map = {
+                [YT.PlayerState.UNSTARTED]: "Unstarted",
+                [YT.PlayerState.ENDED]: "Ended",
+                [YT.PlayerState.PLAYING]: "Playing",
+                [YT.PlayerState.PAUSED]: "Paused",
+                [YT.PlayerState.BUFFERING]: "Buffering",
+                [YT.PlayerState.CUED]: "Cued",
+              };
+              setStatus(map[e.data] || "");
+            },
+          },
+        });
+        setInterval(updateTime, 250);
+      };
+
+      // UI events
+      els.load.addEventListener("click", () => {
+        const id = extractId(els.input.value) || DEFAULT_ID;
+        player.cueVideoById(id);
+        setStatus("Cued");
+      });
+      els.play.addEventListener("click", () => player && player.playVideo());
+      els.pause.addEventListener("click", () => player && player.pauseVideo());
+      els.mute.addEventListener("click", () => player && player.mute());
+      els.unmute.addEventListener("click", () => player && player.unMute());
+      els.seek.addEventListener("click", () => {
+        if (!player) return;
+        const t = (player.getCurrentTime?.() || 0) + 10;
+        player.seekTo(t, true);
+      });
+      document.getElementById("seekBtn2").addEventListener("click", () => {
+        if (player && typeof player.seekTo === "function") {
+          const cur = player.getCurrentTime();
+          player.seekTo(Math.max(0, cur - 10), true); // 👈 10s back
+        }
+      });
+      els.quality.addEventListener("click", () => {
+        if (!player) return;
+        // Let YouTube auto select best quality
+        player.setPlaybackQuality("default");
+        setStatus("Quality: auto");
+      });
+    </script>
+  </body>
+</html>
