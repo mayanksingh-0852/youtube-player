@@ -1,1 +1,1 @@
-[YouTube Player](https://youtube-player-by-me.netlify.app)
+<a href="https://youtube-player-by-me.netlify.app" target="_blank">Open YouTube Player</a>
